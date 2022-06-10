@@ -16,7 +16,6 @@
 #define VIOLET 0xFFFFFF  // 0x9400D3
 #define CYAN 0xFFFFFF    // 0x00FFFF
 #define MAGENTA 0xFFFFFF // 0xFF1493
-
 #define LED_XBTN 6
 int btn_add[4] = {0, 6, 12, 18};
 uint32_t btn_color[4] = {ORANGE, VIOLET, CYAN, MAGENTA};
@@ -49,9 +48,9 @@ int melody[MELODY_STEPS] = {A, A, F, G, F, F, E, D, A, A};              // ,E, E
 int duration[MELODY_STEPS] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1};            // ,1, 1, 2, 2, 1, 2, 2, 1};
 int randomBag[MELODY_STEPS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1}; // ,-1, -1, -1, -1, -1, -1, -1, -1};
 
-//int melody[MELODY_STEPS] = {A, A};      //, F, G, F, F, E, D, A, A};              // ,E, E, C, D, E, E, D, C};
-//int duration[MELODY_STEPS] = {1, 1};    //, 1, 1, 1, 1, 1, 1, 1, 1};            // ,1, 1, 2, 2, 1, 2, 2, 1};
-//int randomBag[MELODY_STEPS] = {-1, -1}; //, -1, -1, -1, -1, -1, -1, -1, -1}; // ,-1, -1, -1, -1, -1, -1, -1, -1};
+// int melody[MELODY_STEPS] = {A, A};      //, F, G, F, F, E, D, A, A};              // ,E, E, C, D, E, E, D, C};
+// int duration[MELODY_STEPS] = {1, 1};    //, 1, 1, 1, 1, 1, 1, 1, 1};            // ,1, 1, 2, 2, 1, 2, 2, 1};
+// int randomBag[MELODY_STEPS] = {-1, -1}; //, -1, -1, -1, -1, -1, -1, -1, -1}; // ,-1, -1, -1, -1, -1, -1, -1, -1};
 
 enum states
 {
@@ -65,13 +64,27 @@ byte gameStep = 0;
 byte state = idle;
 
 // ligths
-void ligthBtn(uint32_t c, int b)
+void ligthBtn(uint32_t c, int b, int t = 0)
 {
   for (int i = 0; i < BTN_COUNT; i++)
+  {
     digitalWrite(btn_ligth_pins[i], LOW);
+    noTone(4);
+  }
 
   if (c > 0)
+  {
     digitalWrite(btn_ligth_pins[b], HIGH);
+    if (t > 0)
+    {
+      tone(4, btn_notes[b], t);
+    }
+    else
+    {
+      tone(4, btn_notes[b]);
+    }
+  }
+
   // strip.fill(c, btn_add[b], LED_XBTN);
   // strip.show();
 }
@@ -108,34 +121,39 @@ void theaterChase(uint32_t color, int wait)
   }
 }
 
-void randomize()
+void randomize_bag()
 {
+  int r = analogRead(A7);
+  randomSeed(r);
+  Serial.print("SEED: ");
+  Serial.println(r);
+
   int rndCandidate = 0;
   boolean repeated = true;
-  for (int i = 0; i < MELODY_STEPS; i++)
-  {
-    randomBag[i] = -1;
-  }
+  // for (int i = 0; i < MELODY_STEPS; i++)
+  // {
+  //   randomBag[i] = -1;
+  // }
 
   for (int i = 0; i < MELODY_STEPS; i++)
   {
-    repeated = true;
-    while (repeated)
-    {
-      repeated = false;
-      rndCandidate = random(MELODY_STEPS);
+    // repeated = true;
+    // while (repeated)
+    // {
+    // repeated = false;
+    // rndCandidate = random(BTN_COUNT);
 
-      for (int j = 0; j < MELODY_STEPS; j++)
-      {
-        if (randomBag[j] == rndCandidate)
-          repeated = true;
-      }
-    }
-    randomBag[i] = rndCandidate;
+    //   for (int j = 0; j < MELODY_STEPS; j++)
+    //   {
+    //     if (randomBag[j] == rndCandidate)
+    //       repeated = true;
+    //   }
+    // }
+    randomBag[i] = random(BTN_COUNT);
   }
   for (int i = 0; i < MELODY_STEPS; i++)
   {
-    randomBag[i] = randomBag[i] % BTN_COUNT;
+    // randomBag[i] = randomBag[i] % BTN_COUNT;
     Serial.print(randomBag[i]);
     Serial.print(" ");
   }
@@ -152,8 +170,7 @@ void playMelody(byte steps = 0)
     if (melody[i] != 0)
     {
       // myDFPlayer.playMp3Folder(melody[i]);
-      ligthBtn(btn_color[randomBag[i]], randomBag[i]);
-      tone(4, btn_notes[randomBag[i]], TEMPO / duration[i]);
+      ligthBtn(btn_color[randomBag[i]], randomBag[i], TEMPO / duration[i]);
     }
     delay(TEMPO / 2);
     ligthBtn(0, randomBag[i]);
@@ -175,21 +192,22 @@ int readButtons()
         pressed = i;
         ligthBtn(btn_color[i], i);
         // myDFPlayer.playMp3Folder(melody[pressed_btns]);
-        tone(4, btn_notes[i], TEMPO);
 
         pressed_btns++;
 
         while (digitalRead(btn_pins[i]))
         {
-          delay(300);
+          delay(10);
         }
+        delay(20);
 
         ligthBtn(0, i);
         break;
       }
     }
+
     if (pressed >= 0)
-      return pressed;
+      break;
   }
   return pressed;
 }
@@ -197,12 +215,13 @@ int readButtons()
 boolean doGame()
 {
   Serial.println("NEW GAME");
-  randomize();
+  randomize_bag();
 
   boolean fail = false;
   gameStep = 0;
   while (!fail)
   {
+    // vas a sufrir asi:
     Serial.print("Step: ");
     Serial.print(gameStep);
     Serial.print(" PRESS: ");
@@ -213,30 +232,41 @@ boolean doGame()
     }
     Serial.println(" - ");
 
+    // buena suerte!
     playMelody(gameStep + 1);
     pressed_btns = 0;
 
+    // vamos a ver si te sabes la secuencia paso a paso.
     for (int i = 0; i <= gameStep; i++)
     {
+      // apretate un boton y vemos como te va.
       int btnP = readButtons();
       Serial.print("BUTTON: ");
       Serial.println(btnP);
 
-      if (btnP != randomBag[i])
+      if (btnP != randomBag[i]) // no le pegaste?
       {
-        fail = true;
+        fail = true; // Cagaste!!
+        for(int j = 0; j < 4; j++){
+          ligthBtn(1,randomBag[i]); // era este gil!
+          delay(250);
+          ligthBtn(1,btnP);
+          delay(250);
+        }
         break;
       }
     }
 
+    // Zafaste
+    //  a ver si ya sufriste suficiente?
     if (gameStep >= MELODY_STEPS - 1)
-      break;
+      break; // chaoo te escapas del sufrimetno !!
 
-    gameStep++;
-
+    gameStep++; // Banca un segundo y vamos un paso mas hasta que falles.
     delay(1000);
   }
 
+  // y.. fallaste?
   if (fail)
   {
     Serial.println("YOU LOSE");
@@ -318,6 +348,7 @@ void setup()
   */
 }
 
+// LOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
 void loop()
 {
   // call to action
@@ -342,21 +373,22 @@ void loop()
     // colorWipe(strip.Color(0, 0, 0), 50); // pink
   }
   Serial.println("START");
-  int this_melody[2] = {NOTE_C4, NOTE_C5}; // ,E, E, C, D, E, E, D, C};
-  for (int thisNote = 0; thisNote < 2; thisNote++)
+
+  // int this_melody[2] = {NOTE_C4, NOTE_C5}; // ,E, E, C, D, E, E, D, C};
+  // for (int thisNote = 0; thisNote < 2; thisNote++)
+  // {
+  //   tone(4, this_melody[thisNote], TEMPO / 2);
+  //   delay(TEMPO / 2);
+  //   noTone(4);
+  // }
+
+  int samples = 2000;
+  for (int i = 0; i < samples; i++)
   {
-
-    // to calculate the note duration, take one second divided by the note type.
-    // e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
-    tone(4, this_melody[thisNote], TEMPO / 2);
-
-    // to distinguish the notes, set a minimum time between them.
-    // the note's duration + 30% seems to work well:
-    // int pauseBetweenNotes = noteDuration * 1.30;
-    delay(TEMPO / 2);
-    // stop the tone playing:
-    noTone(4);
+    // sweep up
+    tone(4, map(i, samples, 0, 500, 100), 100);
   }
+
   digitalWrite(btn_ligth_pins[0], LOW);
   delay(250);
   digitalWrite(btn_ligth_pins[1], LOW);
@@ -373,61 +405,58 @@ void loop()
     ligthBtn(btn_color[i], i);
     delay(200);
   }
-  // delay(500);
-  // for (int i = 0; i < BTN_COUNT; i++)
-  // {
+
   ligthBtn(0, 3);
-  //   delay(200);
-  // }
+
   delay(1000);
 
   // juego
   if (doGame())
   // if(true)
   {
-    // WON
+    // ------------------------------------------ WON
     // playMelody(MELODY_STEPS);
+    delay(200);
+    digitalWrite(btn_ligth_pins[0], HIGH);
+    digitalWrite(btn_ligth_pins[2], HIGH);
+
+    // won melody animation
+    int this_melody[9] = {NOTE_C4, NOTE_E4, NOTE_A4, NOTE_C4, NOTE_E4, NOTE_A4, NOTE_E4, NOTE_A4, NOTE_C5}; // ,E, E, C, D, E, E, D, C};
+    for (int thisNote = 0; thisNote < 9; thisNote++)
+    {
+      digitalWrite(btn_ligth_pins[0], !digitalRead(btn_ligth_pins[0]));
+      digitalWrite(btn_ligth_pins[1], !digitalRead(btn_ligth_pins[1]));
+      digitalWrite(btn_ligth_pins[2], !digitalRead(btn_ligth_pins[2]));
+      digitalWrite(btn_ligth_pins[3], !digitalRead(btn_ligth_pins[3]));
+      tone(4, this_melody[thisNote], TEMPO / 2);
+      delay(TEMPO / 2);
+      noTone(4);
+    }
+
     digitalWrite(btn_ligth_pins[0], HIGH);
     digitalWrite(btn_ligth_pins[1], HIGH);
     digitalWrite(btn_ligth_pins[2], HIGH);
     digitalWrite(btn_ligth_pins[3], HIGH);
-    int this_melody[9] = {NOTE_C4, NOTE_E4, NOTE_A4, NOTE_C4, NOTE_E4, NOTE_A4, NOTE_E4, NOTE_A4, NOTE_C5}; // ,E, E, C, D, E, E, D, C};
-    for (int thisNote = 0; thisNote < 9; thisNote++)
-    {
 
-      // to calculate the note duration, take one second divided by the note type.
-      // e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
-      // int noteDuration = 1000 / win_melody[thisNote];
-      tone(4, this_melody[thisNote], TEMPO / 2);
-
-      // to distinguish the notes, set a minimum time between them.
-      // the note's duration + 30% seems to work well:
-      // int pauseBetweenNotes = noteDuration * 1.30;
-      delay(TEMPO / 2);
-      // stop the tone playing:
-      noTone(4);
-    }
     for (int i = 0; i < 60; i++)
     {
       strip.clear();
-      strip.fill(0x0000FF, 30, 29);
+      strip.fill(0x0000FF, 29, 29);
       strip.show();
       delay(250);
       strip.clear();
       strip.fill(0x0000FF, 0, LED_COUNT);
-      strip.fill(0, 30, 29);
+      strip.fill(0, 29, 29);
       strip.show();
       delay(250);
-    }                                       //
-    colorWipe(strip.Color(0, 0, 255), 100); // Green
-    delay(500);
+    }
+
     strip.fill(0, 0, 24);
     strip.show();
   }
   else
   {
-    // Lose
-    //  colorWipe(strip.Color(255, 255, 255), 50); // Red
+    // ----------------------------------------------------- Lose
     for (int i = 0; i < 3; i++)
     {
       digitalWrite(btn_ligth_pins[0], HIGH);
@@ -441,6 +470,45 @@ void loop()
       digitalWrite(btn_ligth_pins[3], LOW);
       delay(100);
     }
+
+    // int this_melody[2] = {NOTE_F4, NOTE_C3}; // ,E, E, C, D, E, E, D, C};
+    // for (int thisNote = 0; thisNote < 2; thisNote++)
+    // {
+    //   // to calculate the note duration, take one second divided by the note type.
+    //   // e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
+    //   tone(4, this_melody[thisNote], TEMPO);
+
+    //   // to distinguish the notes, set a minimum time between them.
+    //   // the note's duration + 30% seems to work well:
+    //   // int pauseBetweenNotes = noteDuration * 1.30;
+    //   delay(TEMPO);
+    //   // stop the tone playing:
+    //   noTone(4);
+    // }
+
+    int samples = 2000;
+    for (int i = 0; i < samples; i++)
+    {
+      // sweep down
+      tone(4, map(i, 0, samples, 500, 100), 100);
+    }
+
+    for (int i = 0; i < 2000; i++)
+    {
+      // noise
+      tone(4, random(0, 8000), random(0, 10));
+      digitalWrite(btn_ligth_pins[0], HIGH);
+      digitalWrite(btn_ligth_pins[1], HIGH);
+      digitalWrite(btn_ligth_pins[2], HIGH);
+      digitalWrite(btn_ligth_pins[3], HIGH);
+      tone(4, random(0, 8000), random(0, 10));
+      digitalWrite(btn_ligth_pins[0], LOW);
+      digitalWrite(btn_ligth_pins[1], LOW);
+      digitalWrite(btn_ligth_pins[2], LOW);
+      digitalWrite(btn_ligth_pins[3], LOW);
+    }
+    noTone(4);
+
     strip.fill(0xFFFFFF, 0, 29);
     strip.show();
     delay(250);
@@ -451,23 +519,6 @@ void loop()
     strip.show();
     delay(250);
 
-    int this_melody[2] = {NOTE_F4, NOTE_C3}; // ,E, E, C, D, E, E, D, C};
-    for (int thisNote = 0; thisNote < 2; thisNote++)
-    {
-
-      // to calculate the note duration, take one second divided by the note type.
-      // e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
-      tone(4, this_melody[thisNote], TEMPO);
-
-      // to distinguish the notes, set a minimum time between them.
-      // the note's duration + 30% seems to work well:
-      // int pauseBetweenNotes = noteDuration * 1.30;
-      delay(TEMPO);
-      // stop the tone playing:
-      noTone(4);
-    }
-    // strip.clear();
-    // strip.show();
     delay(30000);
   }
 }
